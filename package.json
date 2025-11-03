@@ -1,0 +1,16 @@
+{
+  "name": "dreamz-form-dropbox",
+  "version": "1.0.0",
+  "description": "Sponsorship form using Dropbox",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "dropbox": "^10.34.0",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "pdf-lib": "^1.17.1"
+  }
+}

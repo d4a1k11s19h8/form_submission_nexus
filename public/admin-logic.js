@@ -1,46 +1,33 @@
 document.addEventListener('DOMContentLoaded', () => {
     const loginSection = document.getElementById('login-section');
     const generatorSection = document.getElementById('generator-section');
-    const loginForm = document.getElementById('login-form');
     const generatorForm = document.getElementById('generator-form');
     const resultDiv = document.getElementById('result');
     const errorDiv = document.getElementById('error');
-    
-    // --- NEW ELEMENTS ---
     const copyBtn = document.getElementById('copy-btn');
     const generatedLinkEl = document.getElementById('generated-link');
-    
-    let adminPassword = ''; // We'll store this after login
+    const userEmailEl = document.getElementById('user-email');
 
-    // Show the login form first
-    loginSection.style.display = 'block';
-
-    // Handle Admin Login
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const password = document.getElementById('password').value;
-        
+    // Check if user is already logged in
+    (async () => {
         try {
-            const response = await fetch('/admin-login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
-            });
-
+            const response = await fetch('/admin/auth-status');
             const data = await response.json();
             
-            if (data.success) {
-                adminPassword = password; // Store the password for future requests
+            if (data.authenticated) {
+                // User is logged in, show generator
                 loginSection.style.display = 'none';
                 generatorSection.style.display = 'block';
-                errorDiv.textContent = '';
+                userEmailEl.textContent = `Logged in as: ${data.user.email}`;
             } else {
-                errorDiv.textContent = data.message || 'Login failed.';
+                // User is not logged in, show login button
+                loginSection.style.display = 'block';
+                generatorSection.style.display = 'none';
             }
         } catch (err) {
-            errorDiv.textContent = 'An error occurred.';
+            loginSection.style.display = 'block';
         }
-    });
+    })();
 
     // Handle Token Generation
     generatorForm.addEventListener('submit', async (e) => {
@@ -51,20 +38,18 @@ document.addEventListener('DOMContentLoaded', () => {
         button.textContent = 'Generating...';
         
         try {
+            // No password needed, the server knows we are logged in via our session
             const response = await fetch('/admin-generate-token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // Send the password and brand name
-                body: JSON.stringify({ password: adminPassword, brandName }) 
+                body: JSON.stringify({ brandName }) 
             });
             
             const data = await response.json();
             
             if (data.success) {
-                // --- UPDATED ---
-                // Populate the new <code> element
                 generatedLinkEl.textContent = data.link;
-                resultDiv.style.display = 'flex'; // Use flex to show it
+                resultDiv.style.display = 'flex';
                 errorDiv.textContent = '';
                 generatorForm.reset();
             } else {
@@ -79,20 +64,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- NEW EVENT LISTENER FOR COPY BUTTON ---
+    // Handle Copy Button
     copyBtn.addEventListener('click', () => {
         const linkText = generatedLinkEl.textContent;
         if (!linkText) return;
 
         navigator.clipboard.writeText(linkText).then(() => {
-            // Provide visual feedback
             copyBtn.textContent = 'Copied!';
             copyBtn.classList.add('copied');
-            
             setTimeout(() => {
                 copyBtn.textContent = 'Copy';
                 copyBtn.classList.remove('copied');
-            }, 2000); // Reset after 2 seconds
+            }, 2000);
         }).catch(err => {
             console.error('Failed to copy text: ', err);
             errorDiv.textContent = 'Failed to copy link.';

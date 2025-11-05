@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "connect-mongo": "^5.1.0",
     "dotenv": "^16.6.1",
     "dropbox": "^10.34.0",
     "express": "^4.21.2",

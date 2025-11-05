@@ -14,6 +14,7 @@ const session = require('express-session');
 
 const app = express();
 const port = process.env.PORT || 3000;
+app.set('trust proxy', 1); // <-- ADD THIS LINE
 
 // --- 1. CONFIGURATION ---
 const { 
@@ -399,3 +400,4 @@ app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log(`Admin panel is at http://localhost:${port}/admin`);
 });
+

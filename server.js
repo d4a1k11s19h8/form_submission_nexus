@@ -7,8 +7,10 @@ const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { Dropbox } = require('dropbox');
 const { randomBytes } = require('crypto');
 const { MongoClient } = require('mongodb');
-const bcrypt = require('bcryptjs'); // Using bcrypt is safer, but we'll stick to simple compare
 const cron = require('node-cron');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const session = require('express-session');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -18,9 +20,14 @@ const {
     MONGODB_URI, MONGODB_DB_NAME,
     DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_REFRESH_TOKEN,
     DROPBOX_OFFICIAL_FOLDER_PATH, DROPBOX_USER_FOLDER_PATH,
-    ADMIN_PASSWORD 
+    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+    ADMIN_EMAIL_LIST, BASE_URL, SESSION_SECRET
 } = process.env;
 
+// Create the allowed admin email list
+const allowedAdmins = ADMIN_EMAIL_LIST ? ADMIN_EMAIL_LIST.split(',') : [];
+
+// Use /tmp for Render's ephemeral filesystem, otherwise use local folder
 const TEMP_DOWNLOAD_DIR = path.join(process.env.NODE_ENV === 'production' ? '/tmp' : __dirname, 'temp-downloads');
 const FILE_SIZE_LIMIT = 2 * 1024 * 1024; // 2MB
 
@@ -46,10 +53,57 @@ const dbx = new Dropbox({
     refreshToken: DROPBOX_REFRESH_TOKEN,
 });
 
-// --- 4. MIDDLEWARE ---
-app.use(express.static('public')); // Serve files from 'public'
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse form bodies
+// --- 4. MIDDLEWARE & AUTH SETUP ---
+app.use(express.static('public')); 
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true }));
+
+// Session setup
+app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        secure: process.env.NODE_ENV === 'production' // Use secure cookies in production
+    }
+}));
+
+// Passport setup
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new GoogleStrategy({
+    clientID: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    callbackURL: `${BASE_URL}/auth/google/callback`
+  },
+  (accessToken, refreshToken, profile, done) => {
+    // We only care about the email. Check if it's in our allowed list.
+    const email = profile.emails && profile.emails[0].value;
+    if (allowedAdmins.includes(email)) {
+        return done(null, { email: email, name: profile.displayName });
+    } else {
+        // Not a valid admin
+        return done(null, false, { message: 'User is not an authorized admin.' });
+    }
+  }
+));
+
+passport.serializeUser((user, done) => {
+    done(null, user);
+});
+passport.deserializeUser((user, done) => {
+    done(null, user);
+});
+
+// Auth middleware to protect admin routes
+function isAdmin(req, res, next) {
+    if (req.isAuthenticated() && allowedAdmins.includes(req.user.email)) {
+        return next();
+    }
+    res.status(401).json({ success: false, message: 'Unauthorized' });
+}
 
 // Multer setup for 2 files + 2MB limit
 const upload = multer({
@@ -61,11 +115,10 @@ const upload = multer({
 ]);
 
 // --- 5. AUTOMATED TASK (FILE CLEANUP) ---
-// Runs every hour to delete files older than 1 hour
 cron.schedule('0 * * * *', async () => {
     console.log('Running hourly cleanup of temp-downloads...');
     try {
-        await fs.mkdir(TEMP_DOWNLOAD_DIR, { recursive: true }); // Ensure dir exists
+        await fs.mkdir(TEMP_DOWNLOAD_DIR, { recursive: true });
         const files = await fs.readdir(TEMP_DOWNLOAD_DIR);
         const now = Date.now();
         const oneHour = 60 * 60 * 1000;
@@ -78,9 +131,7 @@ cron.schedule('0 * * * *', async () => {
                     await fs.unlink(filePath);
                     console.log(`Deleted old temp file: ${file}`);
                 }
-            } catch (statErr) {
-                console.error(`Could not stat file ${file}: ${statErr.message}`);
-            }
+            } catch (statErr) {} // Ignore error if file was already deleted
         }
     } catch (err) {
         console.error('Error during temp file cleanup:', err);
@@ -105,15 +156,6 @@ async function uploadToDropbox(pdfBytes, fileName, folderPath) {
     }
 }
 
-// Simple password check for admin
-function checkAdminPassword(reqPassword) {
-    if (!ADMIN_PASSWORD) {
-        console.error("ADMIN_PASSWORD is not set in .env file");
-        return false;
-    }
-    return reqPassword === ADMIN_PASSWORD;
-}
-
 // Server-side validation
 function validateForm(data, files) {
     const { name, company, amount, collectedBy, collectedOn } = data;
@@ -130,29 +172,45 @@ function validateForm(data, files) {
     return { valid: true };
 }
 
-
 // --- 7. API ENDPOINTS ---
+
+// === GOOGLE AUTH ENDPOINTS ===
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/admin' }),
+  (req, res) => {
+    // Successful authentication, redirect to admin panel.
+    res.redirect('/admin');
+  }
+);
+
+app.get('/auth/logout', (req, res) => {
+    req.logout((err) => {
+        if (err) { return next(err); }
+        res.redirect('/admin');
+    });
+});
 
 // === ADMIN ENDPOINTS ===
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-app.post('/admin-login', async (req, res) => {
-    const { password } = req.body;
-    if (checkAdminPassword(password)) {
-        res.json({ success: true });
+// Check if user is logged in
+app.get('/admin/auth-status', (req, res) => {
+    if (req.isAuthenticated() && allowedAdmins.includes(req.user.email)) {
+        res.json({ authenticated: true, user: req.user });
     } else {
-        res.status(401).json({ success: false, message: 'Invalid Password' });
+        res.json({ authenticated: false });
     }
 });
 
-app.post('/admin-generate-token', async (req, res) => {
-    const { password, brandName } = req.body;
-    
-    if (!checkAdminPassword(password)) {
-        return res.status(401).json({ success: false, message: 'Invalid Password' });
-    }
+// Generate a new one-time-use token (protected by 'isAdmin' middleware)
+app.post('/admin-generate-token', isAdmin, async (req, res) => {
+    const { brandName } = req.body;
     if (!brandName) {
         return res.status(400).json({ success: false, message: 'Brand name is required.' });
     }
@@ -162,12 +220,13 @@ app.post('/admin-generate-token', async (req, res) => {
         const tokenDocument = {
             token: token,
             status: 'not_used',
-            createdAt: new Date()
+            createdAt: new Date(),
+            generatedBy: req.user.email // Log who made the token
         };
         
         await db.collection('tokens').insertOne(tokenDocument);
         
-        const fullUrl = req.protocol + '://' + req.get('host');
+        const fullUrl = BASE_URL; // Use the BASE_URL from .env
         const link = `${fullUrl}/?token=${token}`;
 
         res.json({ success: true, link: link });
@@ -243,84 +302,56 @@ app.post('/submit-form', (req, res) => {
                 signatureImageBytes = signatureFile.buffer;
             }
 
-            // ===================================================================
-            // === USING YOUR EXACT COORDINATE LOGIC FROM HERE DOWN ===
-            // ===================================================================
-
             const FONT_SIZE = 10;
             const FONT_COLOR = rgb(0, 0, 0);
 
-            // --- USING YOUR PROVIDED COORDINATES ---
-            const Y_NAME = 450;
-            const Y_COMPANY = 430;
-            const Y_DESIGNATION = 410;
-            const Y_AMOUNT = 390;
-            const Y_COLLECTED_BY = 370;
-            const Y_COLLECTED_ON = 350;
-            const Y_SIGNATURE = 300; 
-
-            // --- 2. CREATE USER COPY ---
+            // --- 3. Create USER COPY ---
             const userTemplateBytes = await fs.readFile(path.join(__dirname, 'public', 'user_copy.pdf'));
             const userPdfDoc = await PDFDocument.load(userTemplateBytes);
             const userPage = userPdfDoc.getPages()[0];
             const userFont = await userPdfDoc.embedFont(StandardFonts.Helvetica);
-
-            // Stamp data onto USER copy
-            userPage.drawText(name, { x: 150, y: Y_NAME-5, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
-            userPage.drawText(company, { x: 230, y: Y_COMPANY-5, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
-            userPage.drawText(designation, { x: 290, y: Y_DESIGNATION-5, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
-            userPage.drawText(`${amount} (${paymentMethod})`, { x: 280, y: Y_AMOUNT-5, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
-            userPage.drawText(collectedBy, { x: 250, y: Y_COLLECTED_BY-5, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
-            userPage.drawText(collectedOn, { x: 250, y: Y_COLLECTED_ON-5, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
+            
+            // Stamp USER copy (using your "perfect" coordinates)
+            userPage.drawText(name, { x: 150, y: 445, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
+            userPage.drawText(company, { x: 230, y: 425, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
+            userPage.drawText(designation, { x: 290, y: 405, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
+            userPage.drawText(`${amount} (${paymentMethod})`, { x: 280, y: 385, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
+            userPage.drawText(collectedBy, { x: 250, y: 365, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
+            userPage.drawText(collectedOn, { x: 250, y: 345, size: FONT_SIZE, font: userFont, color: FONT_COLOR });
 
             if (signatureImageBytes) {
-                const signatureImage = await (signatureFile.mimetype === 'image/png' 
-                    ? userPdfDoc.embedPng(signatureImageBytes) 
-                    : userPdfDoc.embedJpg(signatureImageBytes));
-                userPage.drawImage(signatureImage, { x: 50, y: Y_SIGNATURE, width: 100, height: 40 });
+                const signatureImage = await (signatureFile.mimetype === 'image/png' ? userPdfDoc.embedPng(signatureImageBytes) : userPdfDoc.embedJpg(signatureImageBytes));
+                userPage.drawImage(signatureImage, { x: 50, y: 300, width: 100, height: 40 });
             }
             
             const userPdfBytes = await userPdfDoc.save();
-            
-            // Save USER COPY to temporary folder for download
             await fs.mkdir(TEMP_DOWNLOAD_DIR, { recursive: true });
             const tempFilePath = path.join(TEMP_DOWNLOAD_DIR, filename);
             await fs.writeFile(tempFilePath, userPdfBytes);
             console.log(`Successfully generated USER copy: ${filename}`);
             
-            // --- UPLOAD USER COPY TO DROPBOX ---
             uploadToDropbox(userPdfBytes, filename, DROPBOX_USER_FOLDER_PATH).catch(console.error);
-
             
-            // --- 3. CREATE OFFICIAL COPY ---
+            // --- 4. Create OFFICIAL COPY ---
             const officialTemplateBytes = await fs.readFile(path.join(__dirname, 'public', 'official.pdf'));
             const officialPdfDoc = await PDFDocument.load(officialTemplateBytes);
             const officialPage = officialPdfDoc.getPages()[0];
             const officialFont = await officialPdfDoc.embedFont(StandardFonts.Helvetica);
-
-            // Stamp data onto OFFICIAL copy (using your y_diff logic)
-            const y_diff=Y_COMPANY-Y_COLLECTED_ON-7;
-            officialPage.drawText(name, { x: 150, y: Y_NAME + y_diff, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(company, { x: 230, y: Y_COMPANY + y_diff, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(designation, { x: 290, y: Y_DESIGNATION + y_diff, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(`${amount} (${paymentMethod})`, { x: 280, y: Y_AMOUNT + y_diff, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(collectedBy, { x: 250, y: Y_COLLECTED_BY + y_diff, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(collectedOn, { x: 250, y: Y_COLLECTED_ON + y_diff, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            
+            // Stamp OFFICIAL copy (using your "perfect" coordinates)
+            officialPage.drawText(name, { x: 150, y: 503, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(company, { x: 230, y: 483, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(designation, { x: 290, y: 463, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(`${amount} (${paymentMethod})`, { x: 280, y: 443, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(collectedBy, { x: 250, y: 423, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(collectedOn, { x: 250, y: 403, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
 
             if (signatureImageBytes) {
-                const signatureImage = await (signatureFile.mimetype === 'image/png' 
-                    ? officialPdfDoc.embedPng(signatureImageBytes) 
-                    : officialPdfDoc.embedJpg(signatureImageBytes));
-                officialPage.drawImage(signatureImage, { x: 50, y: Y_SIGNATURE + y_diff, width: 100, height: 40 });
+                const signatureImage = await (signatureFile.mimetype === 'image/png' ? officialPdfDoc.embedPng(signatureImageBytes) : officialPdfDoc.embedJpg(signatureImageBytes));
+                officialPage.drawImage(signatureImage, { x: 50, y: 373, width: 100, height: 40 });
             }
-
-            // ===================================================================
-            // === END OF YOUR COORDINATE LOGIC ===
-            // ===================================================================
-
-            const officialPdfBytes = await officialPdfDoc.save();
             
-            // --- UPLOAD OFFICIAL COPY TO DROPBOX ---
+            const officialPdfBytes = await officialPdfDoc.save();
             uploadToDropbox(officialPdfBytes, filename, DROPBOX_OFFICIAL_FOLDER_PATH).catch(console.error);
 
             // --- 5. Upload SCREENSHOT ---
@@ -355,10 +386,9 @@ app.get('/download-user-copy/:filename', async (req, res) => {
             if (err) {
                 console.error('Error sending file to user:', err);
             }
-            // We NO LONGER delete the file here. The cron job will handle it.
+            // Cron job handles deletion
         });
     } catch (error) {
-        // File not found (or has been cleaned up)
         console.error('File download error:', error);
         res.status(404).send('File not found or has expired. Please contact the event organizers for your copy.');
     }

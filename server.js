@@ -1,3 +1,4 @@
+
 require('dotenv').config(); // This MUST be the first line
 const express = require('express');
 const multer = require('multer');
@@ -11,10 +12,10 @@ const cron = require('node-cron');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
+const MongoStore = require('connect-mongo'); // ✅ Add this line
 
 const app = express();
 const port = process.env.PORT || 3000;
-app.set('trust proxy', 1); // <-- ADD THIS LINE
 
 // --- 1. CONFIGURATION ---
 const { 
@@ -54,7 +55,7 @@ const dbx = new Dropbox({
     refreshToken: DROPBOX_REFRESH_TOKEN,
 });
 
-// --- 4. MIDDLEWARE & AUTH SETUP ---
+// --- 4. MIDDLEWARE & AUTH SETUP (with High-Detail Logging) ---
 app.use(express.static('public')); 
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
@@ -66,13 +67,24 @@ app.use(session({
     saveUninitialized: false,
     cookie: { 
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        secure: process.env.NODE_ENV === 'production' // Use secure cookies in production
-    }
+        secure: process.env.NODE_ENV === 'production'
+    },
+    store: MongoStore.create({
+        mongoUrl: MONGODB_URI,
+        dbName: MONGODB_DB_NAME,
+        touchAfter: 24 * 3600
+    })
 }));
 
 // Passport setup
 app.use(passport.initialize());
 app.use(passport.session());
+
+console.log('Passport Strategy Initializing...');
+console.log(` > My Client ID: ${GOOGLE_CLIENT_ID ? 'Loaded' : '!!! NOT FOUND !!!'}`);
+console.log(` > My Client Secret: ${GOOGLE_CLIENT_SECRET ? 'Loaded' : '!!! NOT FOUND !!!'}`);
+console.log(` > My Callback URL: ${BASE_URL}/auth/google/callback`);
+console.log(` > My Admin List: [${allowedAdmins.join(', ')}]`);
 
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
@@ -80,13 +92,25 @@ passport.use(new GoogleStrategy({
     callbackURL: `${BASE_URL}/auth/google/callback`
   },
   (accessToken, refreshToken, profile, done) => {
-    // We only care about the email. Check if it's in our allowed list.
-    const email = profile.emails && profile.emails[0].value;
-    if (allowedAdmins.includes(email)) {
-        return done(null, { email: email, name: profile.displayName });
-    } else {
-        // Not a valid admin
-        return done(null, false, { message: 'User is not an authorized admin.' });
+    // --- THIS IS YOUR NEW PRECISE ERROR CHECK ---
+    console.log('---------------------------------');
+    console.log('PASSPORT: Google sent back a profile.');
+    
+    try {
+        const email = profile.emails && profile.emails[0].value;
+        console.log(`PASSPORT: Email from profile: ${email}`);
+
+        if (allowedAdmins.includes(email)) {
+            console.log(`PASSPORT: SUCCESS! Email is in the admin list.`);
+            return done(null, { email: email, name: profile.displayName });
+        } else {
+            // This is a precise error.
+            console.error(`PASSPORT: FAILURE! Email "${email}" is NOT in your ADMIN_EMAIL_LIST in the .env file.`);
+            return done(null, false, { message: 'User is not an authorized admin.' });
+        }
+    } catch (err) {
+        console.error('PASSPORT: CRITICAL! Error processing Google profile:', err);
+        return done(err, null);
     }
   }
 ));
@@ -103,10 +127,12 @@ function isAdmin(req, res, next) {
     if (req.isAuthenticated() && allowedAdmins.includes(req.user.email)) {
         return next();
     }
+    // This is a precise error.
+    console.error(`AUTH: Blocked attempt to access admin route. User is not authenticated.`);
     res.status(401).json({ success: false, message: 'Unauthorized' });
 }
 
-// Multer setup for 2 files + 2MB limit
+// Multer (no changes)
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: FILE_SIZE_LIMIT }
@@ -115,78 +141,29 @@ const upload = multer({
     { name: 'paymentScreenshot', maxCount: 1 }
 ]);
 
-// --- 5. AUTOMATED TASK (FILE CLEANUP) ---
-cron.schedule('0 * * * *', async () => {
-    console.log('Running hourly cleanup of temp-downloads...');
-    try {
-        await fs.mkdir(TEMP_DOWNLOAD_DIR, { recursive: true });
-        const files = await fs.readdir(TEMP_DOWNLOAD_DIR);
-        const now = Date.now();
-        const oneHour = 60 * 60 * 1000;
+// ... (Your cron job and helper functions go here) ...
+// ... (No changes needed) ...
 
-        for (const file of files) {
-            const filePath = path.join(TEMP_DOWNLOAD_DIR, file);
-            try {
-                const stat = await fs.stat(filePath);
-                if (now - stat.mtime.getTime() > oneHour) {
-                    await fs.unlink(filePath);
-                    console.log(`Deleted old temp file: ${file}`);
-                }
-            } catch (statErr) {} // Ignore error if file was already deleted
-        }
-    } catch (err) {
-        console.error('Error during temp file cleanup:', err);
-    }
-});
-
-// --- 6. HELPER FUNCTIONS ---
-
-// Dropbox uploader
-async function uploadToDropbox(pdfBytes, fileName, folderPath) {
-    const fullDropboxPath = `${folderPath}/${fileName}`;
-    try {
-        const response = await dbx.filesUpload({
-            path: fullDropboxPath,
-            contents: pdfBytes,
-            mode: 'add',
-            autorename: true
-        });
-        console.log(`Successfully uploaded to ${folderPath}: ${response.result.name}`);
-    } catch (error) {
-        console.error(`Error uploading file to ${folderPath}:`, error.message);
-    }
-}
-
-// Server-side validation
-function validateForm(data, files) {
-    const { name, company, amount, collectedBy, collectedOn } = data;
-    if (!name || !company || !amount || !collectedBy || !collectedOn) {
-        return { valid: false, message: 'Please fill out all required fields.' };
-    }
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(collectedOn)) {
-        return { valid: false, message: 'Invalid date format. Please use YYYY-MM-DD.' };
-    }
-    if (!files || !files.paymentScreenshot || files.paymentScreenshot.length === 0) {
-        return { valid: false, message: 'Payment screenshot is required.' };
-    }
-    return { valid: true };
-}
 
 // --- 7. API ENDPOINTS ---
 
 // === GOOGLE AUTH ENDPOINTS ===
 app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+  (req, res, next) => {
+    console.log('AUTH: User is attempting to log in. Redirecting to Google...');
+    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+  }
 );
 
 app.get('/auth/google/callback', 
   passport.authenticate('google', { failureRedirect: '/admin' }),
   (req, res) => {
-    // Successful authentication, redirect to admin panel.
+    // Successful authentication
+    console.log('AUTH: Google login successful. Redirecting to /admin');
     res.redirect('/admin');
   }
 );
+// ... (Rest of your endpoints are unchanged) ...
 
 app.get('/auth/logout', (req, res) => {
     req.logout((err) => {
@@ -400,4 +377,3 @@ app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log(`Admin panel is at http://localhost:${port}/admin`);
 });
-

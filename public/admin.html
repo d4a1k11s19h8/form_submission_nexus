@@ -6,76 +6,39 @@
     <title>Admin Panel</title>
     <style>
         body{font-family:Arial,sans-serif;background-color:#f4f4f4;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
-        .container{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.1);width:350px}
-        
-        /* --- NEW LOGO STYLE --- */
-        .header-logo {
-            display: block;
-            margin: 0 auto 20px;
-            max-width: 100px; /* Smaller for the admin panel */
-        }
-        
-        h2{text-align:center;margin-top:0}
+        .container{background-color:#fff;padding:30px;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.1);width:350px;text-align:center}
+        .header-logo{display:block;margin:0 auto 20px;max-width:100px}
+        h2{margin-top:0}
         div{margin-bottom:15px}
         label{display:block;margin-bottom:5px;font-weight:700}
-        input[type=text],input[type=password]{width:100%;padding:10px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px}
+        input[type=text]{width:100%;padding:10px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px}
         button{width:100%;padding:10px;background-color:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:16px}
         button:hover{background-color:#0056b3}
         #login-section,#generator-section{display:none}
-        #error{color:red;font-size:14px;text-align:center;margin-top:10px;}
-
-        /* --- UPDATED RESULT STYLES --- */
-        #result{
-            margin-top: 20px;
-            display: none; /* Changed to 'flex' by JS */
-            flex-direction: column;
-            gap: 10px;
-        }
-        #link-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        #generated-link {
-            font-family: monospace;
-            word-wrap: break-word;
-            background-color: #f0f0f0;
-            padding: 8px;
-            border-radius: 4px;
-            flex-grow: 1; /* Takes up available space */
-            font-size: 12px;
-        }
-        #copy-btn {
-            width: auto; /* Don't be full-width */
-            padding: 8px 12px;
-            font-size: 14px;
-            background-color: #f0f0f0;
-            color: #333;
-            border: 1px solid #ccc;
-        }
-        #copy-btn:hover { background-color: #e0e0e0; }
-        #copy-btn.copied { background-color: #28a745; color: white; }
-
+        #error{color:red;font-size:14px;text-align:center;margin-top:10px}
+        #result{margin-top:20px;display:none;flex-direction:column;gap:10px}
+        #link-wrapper{display:flex;align-items:center;gap:10px}
+        #generated-link{font-family:monospace;word-wrap:break-word;background-color:#f0f0f0;padding:8px;border-radius:4px;flex-grow:1;font-size:12px;text-align:left}
+        #copy-btn{width:auto;padding:8px 12px;font-size:14px;background-color:#f0f0f0;color:#333;border:1px solid #ccc}
+        #copy-btn:hover{background-color:#e0e0e0}
+        #copy-btn.copied{background-color:#28a745;color:#fff}
+        .google-btn{display:inline-block;background:#4285F4;color:#fff;text-decoration:none;padding:10px 24px;border-radius:4px;font-weight:700;box-shadow:0 2px 4px rgba(0,0,0,.25)}
+        .google-btn:hover{background:#357ae8}
     </style>
 </head>
 <body>
     <div class="container">
-        
         <img src="logo.png" alt="Logo" class="header-logo">
-
+        
         <div id="login-section">
             <h2>Admin Login</h2>
-            <form id="login-form">
-                <div>
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" required>
-                </div>
-                <button type="submit">Login</button>
-            </form>
+            <p>Please log in with your authorized Google account.</p>
+            <a href="/auth/google" class="google-btn">Login with Google</a>
         </div>
 
         <div id="generator-section">
             <h2>Generate Sponsor Link</h2>
+            <p id="user-email"></p>
             <form id="generator-form">
                 <div>
                     <label for="brandName">Sponsor Brand Name:</label>
@@ -83,6 +46,7 @@
                 </div>
                 <button type="submit">Generate</button>
             </form>
+            <a href="/auth/logout" style="font-size:14px;margin-top:15px;display:block;">Logout</a>
         </div>
 
         <div id="result">

@@ -90,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('collectedBy', document.getElementById('collectedBy').value);
         formData.append('collectedOn', document.getElementById('collectedOn').value);
         
-        // Append both files
         if (signatureFile) {
             formData.append('signature', signatureFile);
         }
@@ -98,7 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('paymentScreenshot', screenshotFile);
         }
         
-        // We get the token from the URL to send back for verification
         const token = new URLSearchParams(window.location.search).get('token');
         formData.append('token', token);
 

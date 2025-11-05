@@ -84,7 +84,7 @@
         #download-link:hover { background-color: #434190; }
 
         
-        /* --- SPONSOR LOGO SECTION STYLES (UPDATED) --- */
+        /* --- SPONSOR LOGO SECTION STYLES --- */
         .sponsors-section {
             margin-top: 40px;
             padding-top: 30px;
@@ -109,14 +109,12 @@
             max-height: 50px; 
             max-width: 120px; 
             object-fit: contain; 
-            /* REMOVED filter and opacity */
-            transition: transform 0.2s ease-in-out; /* NEW transition */
+            transition: transform 0.2s ease-in-out;
         }
         .logo-grid img:hover {
-            /* NEW ANIMATION */
             transform: scale(1.1); /* Makes it 10% bigger */
         }
-        /* --- END OF UPDATED STYLES --- */
+        /* --- END OF STYLES --- */
 
     </style>
 </head>
@@ -152,7 +150,7 @@
                 <select id="paymentMethod" name="paymentMethod">
                     <option value="NEFT">NEFT</option>
                     <option value="RTGS">RTGS</option>
-                </select>
+                    <option value="Online">Online</option> </select>
             </div>
             <div>
                 <label for="paymentScreenshot">Upload Payment Screenshot (Max 2MB):</label>

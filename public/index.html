@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-R">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dreamz Nexus 2K25 Sponsorship</title>
+    <style>
+        /* --- Global Styles --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #fdfcf7; /* Cream Background */
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        /* --- Main Container --- */
+        #form-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            box-sizing: border-box; 
+        }
+
+        /* --- Logo --- */
+        .header-logo {
+            display: block;
+            margin: 0 auto 20px auto;
+            max-width: 150px;
+            height: auto;
+        }
+
+        h1 {
+            color: #222;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        /* --- Form Elements --- */
+        div { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; font-size: 14px; }
+        input[type="text"], input[type="number"], input[type="date"], select, input[type="file"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; color: #333; transition: border-color 0.2s, box-shadow 0.2s; }
+        input[type="file"] { padding: 5px; font-size: 14px; }
+        input[type="file"]::file-selector-button { padding: 8px 12px; border: none; border-radius: 4px; background-color: #5a67d8; color: white; cursor: pointer; margin-right: 10px; transition: background-color 0.2s; }
+        input[type="file"]::file-selector-button:hover { background-color: #434190; }
+        input:focus, select:focus { outline: none; border-color: #5a67d8; box-shadow: 0 0 0 3px rgba(90,103,216,.2); }
+        button { padding: 12px 20px; font-size: 16px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s, transform 0.1s; }
+        button:active { transform: scale(0.98); }
+        #preview-btn { background-color: #5a67d8; color: white; width: 100%; }
+        #preview-btn:hover { background-color: #434190; }
+        #preview-section { display: none; background-color: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 8px; padding: 25px; }
+        #preview-section p { font-size: 16px; color: #444; margin: 15px 0; line-height: 1.5; }
+        #preview-section p strong { font-weight: 600; color: #222; min-width: 180px; display: inline-block; }
+        #signature-preview, #screenshot-preview { max-width: 100%; height: auto; max-height: 150px; border: 1px dashed #ccc; margin-top: 10px; border-radius: 4px; background-color: #fff; }
+        hr { border: none; border-top: 1px solid #eee; margin: 25px 0; }
+        #preview-buttons { display: flex; justify-content: space-between; gap: 15px; }
+        #edit-btn, #submit-btn { flex: 1; }
+        #edit-btn { background-color: #f0f0f0; color: #555; border: 1px solid #ddd; }
+        #edit-btn:hover { background-color: #e5e5e5; }
+        #submit-btn { background-color: #28a745; color: white; }
+        #submit-btn:hover { background-color: #218838; }
+        #success-section { display: none; text-align: center; padding: 40px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; }
+        #success-section h2 { color: #22c55e; border: none; margin-bottom: 15px; }
+        #success-section p { font-size: 16px; color: #333; }
+        #submission-id-wrapper { font-size: 18px; font-weight: bold; color: #111; background-color: #e0e0e0; padding: 10px 20px; border-radius: 6px; display: inline-block; margin: 20px 0; border: 1px dashed #aaa; }
+        #download-link { display: inline-block; background-color: #5a67d8; color: white; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: 600; font-size: 16px; margin-top: 20px; transition: background-color 0.2s; }
+        #download-link:hover { background-color: #434190; }
+
+        
+        /* --- SPONSOR LOGO SECTION STYLES (UPDATED) --- */
+        .sponsors-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+        .sponsors-text {
+            font-style: italic;
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        .logo-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 25px; /* Space between logos */
+        }
+        .logo-grid img {
+            max-height: 50px; 
+            max-width: 120px; 
+            object-fit: contain; 
+            /* REMOVED filter and opacity */
+            transition: transform 0.2s ease-in-out; /* NEW transition */
+        }
+        .logo-grid img:hover {
+            /* NEW ANIMATION */
+            transform: scale(1.1); /* Makes it 10% bigger */
+        }
+        /* --- END OF UPDATED STYLES --- */
+
+    </style>
+</head>
+<body>
+
+    <div id="form-container">
+
+        <img src="logo.png" alt="Event Logo" class="header-logo">
+
+        <h1>Sponsorship Response Form</h1>
+        <p style="text-align: center; margin-top: -10px; margin-bottom: 25px; color: #777;">Dreamz Nexus 2K25</p>
+
+        <form id="sponsor-form">
+            <h2>Details of the Sponsor</h2>
+            <div>
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+             <div>
+                <label for="company">Company/Brand:</label>
+                <input type="text" id="company" name="company" required>
+            </div>
+            <div>
+                <label for="designation">Designation of the Representative:</label>
+                <input type="text" id="designation" name="designation" required>
+            </div>
+            <div>
+                <label for="amount">Amount Paid:</label>
+                <input type="number" id="amount" name="amount" required>
+            </div>
+            <div>
+                <label for="paymentMethod">Payment Method:</label>
+                <select id="paymentMethod" name="paymentMethod">
+                    <option value="NEFT">NEFT</option>
+                    <option value="RTGS">RTGS</option>
+                </select>
+            </div>
+            <div>
+                <label for="paymentScreenshot">Upload Payment Screenshot (Max 2MB):</label>
+                <input type="file" id="paymentScreenshot" name="paymentScreenshot" accept="image/jpeg, image/png" required>
+            </div>
+            <div>
+                <label for="collectedBy">Payment Collected By:</label>
+                <input type="text" id="collectedBy" name="collectedBy" required>
+            </div>
+            <div>
+                <label for="collectedOn">Payment Collected On:</label>
+                <input type="date" id="collectedOn" name="collectedOn" required>
+            </div>
+            <div>
+                <label for="signature">Signature (JPG or PNG only, Max 2MB):</label>
+                <input type="file" id="signature" name="signature" accept="image/jpeg, image/png">
+            </div>
+            <button type="button" id="preview-btn">Preview</button>
+        </form>
+
+        <div id="preview-section">
+            <h2>Preview Your Submission</h2>
+            <p><strong>Name:</strong> <span id="preview-name"></span></p>
+            <p><strong>Company/Brand:</strong> <span id="preview-company"></span></p>
+            <p><strong>Designation:</strong> <span id="preview-designation"></span></p>
+            <p><strong>Amount Paid:</strong> <span id="preview-amount"></span></p>
+            <p><strong>Payment Method:</strong> <span id="preview-method"></span></p>
+            <p><strong>Payment Screenshot:</strong></p>
+            <img id="screenshot-preview" src="" alt="Payment Screenshot Preview">
+            <p><strong>Payment Collected By:</strong> <span id="preview-collectedBy"></span></p>
+            <p><strong>Payment Collected On:</strong> <span id="preview-collectedOn"></span></p>
+            <p><strong>Signature Preview:</strong></p>
+            <img id="signature-preview" src="" alt="Signature Preview">
+            <hr>
+            <div id="preview-buttons">
+                <button type="button" id="edit-btn">Edit</button>
+                <button type="button" id="submit-btn">Confirm & Submit</button>
+            </div>
+        </div>
+
+        <div id="success-section">
+            <h2>✅ Submission Successful!</h2>
+            <p>Thank you for your sponsorship. Please save this key for your records.</p>
+            <p>Your Submission ID (Key):</p>
+            <div id="submission-id-wrapper">
+                <span id="submission-id"></span>
+            </div>
+            <p>
+                <a href="#" id="download-link" download>Download Your Copy</a>
+            </p>
+        </div>
+
+        <div class="sponsors-section">
+            <p class="sponsors-text">
+                "We extend a heartfelt gratitude to our incredible sponsors that have made this incredible college fest Dreamz come to life in the past, present and the days to come!"
+            </p>
+            <div class="logo-grid">
+                <img src="sponsor1.png" alt="Sponsor 1 Logo">
+                <img src="sponsor2.png" alt="Sponsor 2 Logo">
+                <img src="sponsor3.png" alt="Sponsor 3 Logo">
+                <img src="sponsor4.png" alt="Sponsor 4 Logo">
+                <img src="sponsor5.png" alt="Sponsor 5 Logo">
+                <img src="sponsor6.png" alt="Sponsor 6 Logo">
+                <img src="sponsor7.png" alt="Sponsor 7 Logo">
+                <img src="sponsor8.png" alt="Sponsor 8 Logo">
+                <img src="sponsor9.jpg" alt="Sponsor 9 Logo">
+                <img src="sponsor10.png" alt="Sponsor 10 Logo">
+            </div>
+        </div>
+
+    </div> <script src="form-logic.js"></script>
+</body>
+</html>

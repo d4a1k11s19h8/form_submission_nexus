@@ -340,12 +340,12 @@ app.post('/submit-form', (req, res) => {
             const officialFont = await officialPdfDoc.embedFont(StandardFonts.Helvetica);
             
             // Stamp OFFICIAL copy (using your "perfect" coordinates)
-            officialPage.drawText(name, { x: 150, y: 503, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(company, { x: 230, y: 483, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(designation, { x: 290, y: 463, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(`${amount} (${paymentMethod})`, { x: 280, y: 443, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(collectedBy, { x: 250, y: 423, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
-            officialPage.drawText(collectedOn, { x: 250, y: 403, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(name, { x: 150, y: 503-20, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(company, { x: 230, y: 483-20, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(designation, { x: 290, y: 463-20, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(`${amount} (${paymentMethod})`, { x: 280, y: 443-20, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(collectedBy, { x: 250, y: 423-20, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
+            officialPage.drawText(collectedOn, { x: 250, y: 403-20, size: FONT_SIZE, font: officialFont, color: FONT_COLOR });
 
             if (signatureImageBytes) {
                 const signatureImage = await (signatureFile.mimetype === 'image/png' ? officialPdfDoc.embedPng(signatureImageBytes) : officialPdfDoc.embedJpg(signatureImageBytes));
@@ -400,4 +400,5 @@ app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log(`Admin panel is at http://localhost:${port}/admin`);
 });
+
 
